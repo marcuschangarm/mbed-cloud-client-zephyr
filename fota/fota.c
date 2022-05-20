@@ -118,6 +118,26 @@ static void fota_multicast_node_on_fragment(void *data, size_t size);
 #endif
 #endif
 
+int pdmc_component_installer(const char* comp_name, const char *sub_comp_name, fota_comp_candidate_iterate_callback_info *info, const uint8_t *vendor_data, size_t vendor_data_size, void* app_ctx)
+{
+    switch (info->status) {
+        case FOTA_CANDIDATE_ITERATE_START:
+            FOTA_TRACE_INFO("fota candidate iterate start");
+            return FOTA_STATUS_SUCCESS;
+        case FOTA_CANDIDATE_ITERATE_FRAGMENT:
+            printf(".");
+            return FOTA_STATUS_SUCCESS;
+        case FOTA_CANDIDATE_ITERATE_FINISH:
+            FOTA_TRACE_INFO("fota candidate iterate finish");
+            FOTA_TRACE_INFO("Application received external update"); // Use same phrase than in UCHub case. Test case is polling this line.
+            return FOTA_STATUS_SUCCESS;
+        default:
+            return FOTA_STATUS_INTERNAL_ERROR;
+    }
+
+    return FOTA_STATUS_SUCCESS;
+}
+
 static inline void clear_buffer_from_mem(void *buffer, size_t size)
 {
 #if !defined(FOTA_UNIT_TEST)
@@ -441,7 +461,7 @@ static void fota_after_upgrade()
 #if defined(TARGET_LIKE_LINUX)
     ret = fota_linux_read_file(fota_linux_get_package_descriptor_file_name(), &package_descriptor_buffer, &package_descriptor_buffer_size);
 #else
-    ret = 0; // TODO : implement for embedded targets
+    ret = fota_cbor_get(FOTA_COMBINED_IMAGE_DESCRIPTOR_FILENAME, &package_descriptor_buffer, &package_descriptor_buffer_size);
 #endif
     if (ret != 0 && ret != FOTA_STATUS_COMB_PACKAGE_DIR_NOT_FOUND) { // failed to read existing combined package descriptor
         fota_source_report_update_result(ret);
@@ -805,6 +825,9 @@ int fota_init(void *m2m_interface, void *resource_list)
 #if !(defined(TARGET_LIKE_LINUX) && !defined(MBED_CLOUD_CLIENT_FOTA_LINUX_SINGLE_MAIN_FILE))
     main_component_desc.curr_fw_get_digest = fota_curr_fw_get_digest;
 #endif
+
+    main_component_desc.component_install_cb = pdmc_component_installer;
+
 
     ret = fota_component_add(&main_component_desc, FOTA_COMPONENT_MAIN_COMPONENT_NAME, factory_version);
     FOTA_DBG_ASSERT(!ret);
@@ -1352,7 +1375,7 @@ static void install_single_component()
     // Code saving - only relevant if we have additional components other than the main one
 #if FOTA_COMPONENT_SUPPORT
     // Installer and successful finish actions apply to all components but the main one
-    bool do_install;
+    bool do_install = true;
     fota_comp_install_cb_t install_handler;
     fota_candidate_iterate_handler_t iterate_handler = NULL;
     size_t install_alignment;
@@ -1364,7 +1387,7 @@ static void install_single_component()
     install_alignment = 1;
 #else
     // Embedded platform: Bootloader will run the installation on main component, rest are done here
-    do_install = (comp_id == FOTA_COMPONENT_MAIN_COMP_NUM) ? false : true;
+//    do_install = (comp_id == FOTA_COMPONENT_MAIN_COMP_NUM) ? false : true;
     // TODO: Deprecated iterate_handler used for backwards compatobility. Remove once we stop support it.
     iterate_handler = comp_desc->desc_info.candidate_iterate_cb;
     install_handler = comp_desc->desc_info.component_install_cb;
@@ -1376,7 +1399,8 @@ static void install_single_component()
 #if FOTA_DIRECT_BLOCK_DEVICE_SUPPORT
         // Run the installer using the candidate iterate service
         ret = fota_candidate_iterate_image(true, (bool) MBED_CLOUD_CLIENT_FOTA_ENCRYPTION_SUPPORT,
-                                           comp_desc->name, install_alignment,
+                                           comp_id, comp_desc->name,
+                                           fota_ctx->fw_info, install_alignment,
                                            iterate_handler, install_handler);
         if (ret) {
             abort_update(ret, "Failed on component update");
@@ -1477,6 +1501,8 @@ fail:
 }
 #if (MBED_CLOUD_CLIENT_FOTA_SUB_COMPONENT_SUPPORT == 1)
 
+int pdmc_component_installer(const char *comp_name, const char *sub_comp_name, fota_comp_candidate_iterate_callback_info *info, const uint8_t *vendor_data, size_t vendor_data_size, void *app_ctx);
+
 static void install_combined_package()
 {
     unsigned int comp_id = fota_ctx->comp_id;
@@ -1491,13 +1517,16 @@ static void install_combined_package()
 
     FOTA_TRACE_INFO("Installing combined image");
 
-    fota_comp_install_cb_t install_handler = fota_linux_candidate_iterate;
+//    fota_comp_install_cb_t install_handler = fota_linux_candidate_iterate;
+    fota_comp_install_cb_t install_handler = pdmc_component_installer;
+
     fota_candidate_iterate_handler_t iterate_handler = NULL;
     size_t install_alignment = 1;
 
     //Get combined package from candidate
     ret = fota_candidate_iterate_image(true, (bool) MBED_CLOUD_CLIENT_FOTA_ENCRYPTION_SUPPORT,
-                                       comp_desc->name, install_alignment,
+                                       comp_id, comp_desc->name,
+                                       fota_ctx->fw_info, install_alignment,
                                        iterate_handler, install_handler);
     if (ret) {
         FOTA_TRACE_ERROR("Failed to extract combined package from the candidate");
@@ -1508,6 +1537,10 @@ static void install_combined_package()
 #if defined(TARGET_LIKE_LINUX)
     ret = fota_linux_extract_and_get_package_descriptor_data(&package_descriptor_buffer,
                                                              &package_descriptor_buffer_size);
+#else
+    ret = fota_cbor_get(FOTA_COMBINED_IMAGE_DESCRIPTOR_FILENAME,
+                        &package_descriptor_buffer,
+                        &package_descriptor_buffer_size);
 #endif
     if (ret) {
         FOTA_TRACE_ERROR("Failed to read package descriptor");
@@ -2192,8 +2225,10 @@ static void fota_on_install_authorize(fota_install_state_e fota_install_type)
 #if FOTA_DIRECT_BLOCK_DEVICE_SUPPORT
     if (fota_install_state != FOTA_INSTALL_STATE_DEFER) {
         if (fota_ctx->candidate_header_size) {
+            FOTA_TRACE_INFO("write_candidate_ready");
             ret = write_candidate_ready(comp_desc->name);
         } else {
+            FOTA_TRACE_INFO("prepare_and_program_header");
             ret = prepare_and_program_header();
         }
         if (ret) {

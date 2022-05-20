@@ -114,8 +114,10 @@ int fota_candidate_iterate_image_backward_support(uint8_t validate, bool force_e
  * \param[in] component_install_cb install callback for component
  * \return FOTA_STATUS_SUCCESS on success.
  */
-int fota_candidate_iterate_image(uint8_t validate, bool force_encrypt, const char *expected_comp_name,
-                                 uint32_t install_alignment, fota_candidate_iterate_handler_t handler, fota_comp_install_cb_t component_install_cb);
+int fota_candidate_iterate_image(uint8_t validate, bool force_encrypt,
+                                 size_t comp_id, const char *expected_comp_name,
+                                 void* manifest, uint32_t install_alignment,
+                                 fota_candidate_iterate_handler_t handler, fota_comp_install_cb_t component_install_cb);
 
 /**
  * Read candidate component ready header.

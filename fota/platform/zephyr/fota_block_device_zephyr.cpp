@@ -18,9 +18,15 @@
 
 #if defined(__ZEPHYR__)
 
+#include "FlashMap.h"
+
 #include "fota/fota_block_device.h"
+#include "fota/fota_curr_fw.h"
 
 #define TRACE_GROUP "FOTA"
+
+
+static pelion::FlashMap flash(FLASH_AREA_ID(pelion_staging));
 
 /**
  * Pelion FOTA block device initialize.
@@ -31,9 +37,7 @@
  */
 int fota_bd_init(void)
 {
-    FOTA_ASSERT(0);
-
-    return 0;
+    return flash.init();
 }
 
 /**
@@ -43,9 +47,7 @@ int fota_bd_init(void)
  */
 int fota_bd_deinit(void)
 {
-    FOTA_ASSERT(0);
-
-    return 0;
+    return flash.deinit();
 }
 
 /**
@@ -56,9 +58,10 @@ int fota_bd_deinit(void)
  */
 int fota_bd_size(size_t *size)
 {
-    FOTA_ASSERT(0);
+    FOTA_ASSERT(size);
 
-    return 0;
+    *size = (size_t) flash.get_flash_size();
+    return FOTA_STATUS_SUCCESS;
 }
 
 /**
@@ -72,9 +75,14 @@ int fota_bd_size(size_t *size)
  */
 int fota_bd_read(void *buffer, size_t addr, size_t size)
 {
-    FOTA_ASSERT(0);
+    FOTA_ASSERT(buffer);
 
-    return 0;
+    int result = flash.read(buffer, addr, size);
+
+    if (result) {
+        return FOTA_STATUS_STORAGE_READ_FAILED;
+    }
+    return FOTA_STATUS_SUCCESS;
 }
 
 /**
@@ -91,9 +99,14 @@ int fota_bd_read(void *buffer, size_t addr, size_t size)
  */
 int fota_bd_program(const void *buffer, size_t addr, size_t size)
 {
-    FOTA_ASSERT(0);
+    FOTA_ASSERT(buffer);
 
-    return 0;
+    int result = flash.program(buffer, addr, size);
+
+    if (result) {
+        return FOTA_STATUS_STORAGE_WRITE_FAILED;
+    }
+    return FOTA_STATUS_SUCCESS;
 }
 
 /**
@@ -107,9 +120,12 @@ int fota_bd_program(const void *buffer, size_t addr, size_t size)
  */
 int fota_bd_erase(size_t addr, size_t size)
 {
-    FOTA_ASSERT(0);
+    int result = flash.erase(addr, size);
 
-    return 0;
+    if (result) {
+        return FOTA_STATUS_STORAGE_WRITE_FAILED;
+    }
+    return FOTA_STATUS_SUCCESS;
 }
 
 /**
@@ -120,9 +136,10 @@ int fota_bd_erase(size_t addr, size_t size)
  */
 int fota_bd_get_read_size(size_t *read_size)
 {
-    FOTA_ASSERT(0);
+    FOTA_ASSERT(read_size);
 
-    return 0;
+    *read_size = 1;
+    return FOTA_STATUS_SUCCESS;
 }
 
 /**
@@ -133,9 +150,10 @@ int fota_bd_get_read_size(size_t *read_size)
  */
 int fota_bd_get_program_size(size_t *prog_size)
 {
-    FOTA_ASSERT(0);
+    FOTA_ASSERT(prog_size);
 
-    return 0;
+    *prog_size = (size_t) flash.get_page_size();
+    return FOTA_STATUS_SUCCESS;
 }
 
 /**
@@ -147,10 +165,10 @@ int fota_bd_get_program_size(size_t *prog_size)
  */
 int fota_bd_get_erase_size(size_t addr, size_t *erase_size)
 {
-    FOTA_ASSERT(0);
+    FOTA_ASSERT(erase_size);
 
-    return 0;
-}
+    *erase_size = (size_t) flash.get_sector_size(addr);
+    return FOTA_STATUS_SUCCESS;}
 
 /**
  * Pelion FOTA block device get the value of the storage when erased.
@@ -161,9 +179,10 @@ int fota_bd_get_erase_size(size_t addr, size_t *erase_size)
  */
 int fota_bd_get_erase_value(int *erase_value)
 {
-    FOTA_ASSERT(0);
+    FOTA_ASSERT(erase_value);
 
-    return 0;
+    *erase_value = flash.get_erase_value();
+    return FOTA_STATUS_SUCCESS;
 }
 
 /**
@@ -177,25 +196,7 @@ int fota_bd_get_erase_value(int *erase_value)
  */
 size_t fota_bd_physical_addr_to_logical_addr(size_t phys_addr)
 {
-    FOTA_ASSERT(0);
-
-    return 0;
-}
-
-/**
- * Read from the current firmware.
- *
- * \param[out] buf       Buffer to read into.
- * \param[in]  offset    Offset in the firmware.
- * \param[in]  size      Size to read in bytes.
- * \param[out] num_read  Number of read bytes.
- * \return ::FOTA_STATUS_SUCCESS on success.
- */
-int fota_curr_fw_read(uint8_t *buf, size_t offset, size_t size, size_t *num_read)
-{
-    FOTA_ASSERT(0);
-
-    return 0;
+    return phys_addr;
 }
 
 #endif // __ZEPHYR__

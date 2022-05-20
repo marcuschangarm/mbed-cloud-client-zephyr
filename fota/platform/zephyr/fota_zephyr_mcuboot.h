@@ -93,6 +93,18 @@ int fota_zephyr_mcuboot_install(uint32_t location);
 int fota_zephyr_mcuboot_get_manifest(uint32_t location,
                                      manifest_firmware_info_t *details);
 
+/**
+ * @brief Read a fragment from the indicated storage location.
+ * @details The function will read until the buffer is full or the end of
+ *          the storage location has been reached. The actual amount of
+ *          bytes read is set in the buffer struct.
+ */
+int fota_zephyr_mcuboot_read(uint32_t slot_id,
+                             uint8_t *buffer,
+                             size_t offset,
+                             size_t size,
+                             size_t *num_read);
+
 #ifdef __cplusplus
 }
 #endif

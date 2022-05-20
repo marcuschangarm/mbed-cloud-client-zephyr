@@ -16,15 +16,20 @@
 // limitations under the License.
 // ----------------------------------------------------------------------------
 
-#ifndef __FOTA_MANIFEST_H_
-#define __FOTA_MANIFEST_H_
+#ifndef FOTA_MANIFEST_DEPENDENCIES
+#define FOTA_MANIFEST_DEPENDENCIES
 
 #include "fota/fota_base.h"
 
-#if defined(MBED_CLOUD_CLIENT_FOTA_ENABLE)
-
 #include "fota/fota_crypto_defs.h"
 #include "fota/fota_component.h"
+
+#endif // FOTA_MANIFEST_DEPENDENCIES
+
+#ifndef FOTA_MANIFEST_DECLARATIONS
+#define FOTA_MANIFEST_DECLARATIONS
+
+#if defined(MBED_CLOUD_CLIENT_FOTA_ENABLE)
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,7 +74,7 @@ typedef struct {
     uint8_t        vendor_id[FOTA_VENDOR_ID_LEN];                /*< Vendor ID of the device. */
     uint8_t        class_id[FOTA_CLASS_ID_LEN];                  /*< Class ID of the device. */
 } manifest_firmware_info_t;
-
+#warning struct defined
 /*
  * Parse and validate Pelion FOTA manifest.
  *
@@ -110,4 +115,4 @@ int fota_encryption_key_parse(
 
 #endif // defined(MBED_CLOUD_CLIENT_FOTA_ENABLE)
 
-#endif // __FOTA_MANIFEST_H_
+#endif // FOTA_MANIFEST_DECLARATIONS

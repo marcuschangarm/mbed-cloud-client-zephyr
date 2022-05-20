@@ -27,6 +27,7 @@
 #include "fota/fota_block_device.h"
 #include "fota/fota_crypto.h"
 #include "fota/fota_nvm.h"
+#include "fota/fota_manifest.h"
 #include <stdlib.h>
 #include <inttypes.h>
 
@@ -490,10 +491,16 @@ fail:
 
 }
 
-int fota_candidate_iterate_image(uint8_t validate, bool force_encrypt, const char *expected_comp_name,
-                                 uint32_t install_alignment, fota_candidate_iterate_handler_t handler, fota_comp_install_cb_t component_install_cb)
+int fota_candidate_iterate_image(uint8_t validate, bool force_encrypt,
+                                 size_t comp_id, const char *expected_comp_name,
+                                 void* manifest_void, uint32_t install_alignment,
+                                 fota_candidate_iterate_handler_t handler, fota_comp_install_cb_t component_install_cb)
 {
     int ret;
+
+    manifest_firmware_info_t* manifest = (manifest_firmware_info_t*) manifest_void;
+
+    FOTA_TRACE_INFO("fota_candidate_iterate_image");
 
     // both handlers not allowed
     FOTA_ASSERT(!(component_install_cb && handler));

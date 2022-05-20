@@ -56,4 +56,8 @@ int fota_curr_fw_get_digest(uint8_t *buf)
     return 0;
 }
 
+int fota_curr_fw_read(uint8_t *buffer, size_t offset, size_t size, size_t *num_read)
+{
+    return fota_zephyr_mcuboot_read(buffer, offset, size, num_read);
+}
 #endif // __ZEPHYR__

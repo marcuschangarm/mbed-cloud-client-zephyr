@@ -48,9 +48,7 @@ int fota_combined_package_parse(package_descriptor_t *descriptor_info, uint8_t *
 void fota_combined_clean_image_descriptors_array(package_descriptor_t *descriptor_info);
 image_descriptor_t* fota_combined_package_get_descriptor(const char *sub_comp_name, const package_descriptor_t *descriptor_info);
 
-#if defined(TARGET_LIKE_LINUX)
 #define FOTA_COMBINED_IMAGE_DESCRIPTOR_FILENAME  "_desc_"
-#endif
 
 #ifdef FOTA_PACKAGE_DEBUG
 #define FOTA_PACKAGE_TRACE_DEBUG FOTA_TRACE_DEBUG

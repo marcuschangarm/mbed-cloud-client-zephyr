@@ -260,7 +260,7 @@ int fota_combined_package_parse(package_descriptor_t *descriptor_info, uint8_t *
         return FOTA_STATUS_COMB_PACKAGE_MALFORMED;
     }
 
-    if (FOTA_MAX_NUM_OF_SUB_COMPONENTS != descriptor_info->num_of_images) {
+    if (FOTA_MAX_NUM_OF_SUB_COMPONENTS < descriptor_info->num_of_images) {
         FOTA_TRACE_ERROR("Wrong number of combined images");
         return FOTA_STATUS_COMB_PACKAGE_WRONG_IMAGE_NUM;
     }

@@ -301,7 +301,7 @@ int fota_zephyr_mcuboot_write(uint32_t slot_id,
                       buffer, size, slot_addr, offset);
 
         /* set default error */
-        result = FOTA_STATUS_INVALID_ARGUMENT;
+        result = FOTA_STATUS_STORAGE_WRITE_FAILED;
 
         /**
          * Catch MCUBOOT header at offset 0 and store it in buffer for later activation.
@@ -590,6 +590,74 @@ int fota_zephyr_mcuboot_get_manifest(uint32_t slot_id,
         }
         printf("\r\n");
 #endif
+    }
+
+    return result;
+}
+
+/**
+ * @brief Read a fragment from the indicated storage location.
+ * @details The function will read until the buffer is full or the end of
+ *          the storage location has been reached. The actual amount of
+ *          bytes read is set in the buffer struct.
+ */
+int fota_zephyr_mcuboot_read(uint32_t slot_id,
+                             uint8_t *buffer,
+                             size_t offset,
+                             size_t size,
+                             size_t *num_read)
+{
+    /* find slot address and size */
+    uint32_t slot_addr = ARM_UC_FLASH_INVALID_SIZE;
+    uint32_t slot_size = ARM_UC_FLASH_INVALID_SIZE;
+    int result = fota_zephyr_flashiap_get_slot_addr_size(slot_id,
+                                                         &slot_addr,
+                                                         &slot_size);
+
+    if (buffer && num_read && (result == FOTA_STATUS_SUCCESS)) {
+        FOTA_TRACE_INFO("fota_zephyr_mcuboot_read: %" PRIX32 " %" PRIX32 " %" PRIX32,
+                        slot_id, offset, size);
+
+        /* reset result */
+        result = FOTA_STATUS_INVALID_ARGUMENT;
+
+        /* find physical address of the read */
+        uint32_t read_size = size;
+        uint32_t physical_address = slot_addr + offset;
+
+        /* do not read over the slot size */
+        if (read_size + offset > slot_size) {
+            read_size = slot_size - offset;
+        }
+
+        FOTA_TRACE_INFO("reading addr %" PRIX32 " size %" PRIX32,
+                        physical_address, read_size);
+
+        int status = fota_zephyr_flashiap_candidate_read(buffer,
+                                                         physical_address,
+                                                         read_size);
+
+        if (status == ARM_UC_FLASHIAP_SUCCESS) {
+            result = FOTA_STATUS_SUCCESS;
+            *num_read = read_size;
+
+            /**
+             * Provide MCUBOOT header from buffer when reading at offset 0
+             * so that hash checking newly downloaded firmware succeeds.
+             */
+            if ((offset == 0) && (size >= MCUBOOT_HEADER_BUFFER_SIZE)) {
+
+                FOTA_TRACE_INFO("replace MCUBOOT header with cached version");
+
+                /* copy header to buffer */
+                memcpy(buffer, fota_zephyr_mcuboot_header, MCUBOOT_HEADER_BUFFER_SIZE);
+            }
+        } else {
+            result = FOTA_STATUS_STORAGE_READ_FAILED;
+            FOTA_TRACE_ERROR("fota_zephyr_flashiap_candidate_read failed");
+        }
+    } else {
+        result = FOTA_STATUS_INVALID_ARGUMENT;
     }
 
     return result;

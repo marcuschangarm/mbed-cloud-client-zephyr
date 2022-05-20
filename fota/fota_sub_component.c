@@ -250,7 +250,7 @@ int fota_sub_component_validate_package_images(const char *comp_name, const pack
     sub_comp_table = &(g_comp_table[comp_index].sub_comp_table);
 
     //Check number of subcomponents
-    if (desc_num_components != sub_comp_table->num_of_sub_comps) {
+    if (desc_num_components > sub_comp_table->num_of_sub_comps) {
         FOTA_TRACE_ERROR("Numbers of package images and registered subcomponents are different");
         return FOTA_STATUS_INVALID_ARGUMENT;
     }
@@ -294,35 +294,35 @@ int fota_sub_component_install(const char *comp_name, package_descriptor_t *desc
 
         // Get image descriptor of current subcomponent
         image_descriptor = fota_combined_package_get_descriptor(sub_component_name, descriptor_info);
-        if (!image_descriptor) {
-            FOTA_TRACE_ERROR("Failed to get subcomponent info for %s ", sub_component_name);
-            goto end;
-        }
+        if (image_descriptor) {
 
-        // Get installer callback pointer
-        install_cb = sub_comp_table->install_order[sub_comp_index].cb_function;
+            // Get installer callback pointer
+            install_cb = sub_comp_table->install_order[sub_comp_index].cb_function;
 
-        // Check install_cb
-        if (!install_cb) {
-            FOTA_TRACE_ERROR("Install callback is NULL");
-            goto end;
-        }
+            // Check install_cb
+            if (!install_cb) {
+                FOTA_TRACE_ERROR("Install callback is NULL");
+                goto end;
+            }
 
 #if defined(TARGET_LIKE_LINUX)
-        file_name = malloc(strlen(fota_linux_get_package_dir_name()) + strlen(sub_component_name) + 2);
-        if (!file_name) {
-            FOTA_TRACE_ERROR("Couldn't allocate file name");
-            goto end;
-        }
-        sprintf(file_name, "%s/%s", fota_linux_get_package_dir_name(), sub_component_name);
+            file_name = malloc(strlen(fota_linux_get_package_dir_name()) + strlen(sub_component_name) + 2);
+            if (!file_name) {
+                FOTA_TRACE_ERROR("Couldn't allocate file name");
+                goto end;
+            }
+            sprintf(file_name, "%s/%s", fota_linux_get_package_dir_name(), sub_component_name);
 #endif
-        //Call installer callback
-        ret = install_cb(comp_name, sub_component_name, file_name, image_descriptor->vendor_data, image_descriptor->vendor_data_size, NULL);
-        if (ret) {
-            FOTA_TRACE_ERROR("Failed to install current subcomponent %s ", sub_component_name);
-            fota_source_report_update_customer_result(ret);
-            ret = FOTA_STATUS_INTERNAL_ERROR;
-            goto end;
+            //Call installer callback
+            ret = install_cb(comp_name, sub_component_name, file_name, image_descriptor->vendor_data, image_descriptor->vendor_data_size, NULL);
+            if (ret) {
+                FOTA_TRACE_ERROR("Failed to install current subcomponent %s ", sub_component_name);
+                fota_source_report_update_customer_result(ret);
+                ret = FOTA_STATUS_INTERNAL_ERROR;
+                goto end;
+            }
+        } else {
+            FOTA_TRACE_INFO("Failed to get subcomponent info for %s ", sub_component_name);
         }
     }
     ret = FOTA_STATUS_SUCCESS;
